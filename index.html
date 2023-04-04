@@ -9,39 +9,74 @@
 </head>
 
 <body style="margin : 0px; overflow: hidden;">
-    <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;">
-        <a-nft type="nft" url="markers/hirohiro" smooth="true" smoothCount="10" smoothTolerance=".01"
-            smoothThreshold="5">
-            <a-entity id="measuringTape" position="0 0 0" rotation="0 0 0" scale="1 1 1"
-                obj-model="obj: url(models/measuringTape.obj);" material="color: #ffffff;"></a-entity>
-        </a-nft>
-        <a-entity camera></a-entity>
-        <a-plane id="ground" scale="10 10 10" rotation="-90 0 0" position="0 0 0"
-            material="opacity: 0.3; transparent: true; color: #39BB82"></a-plane>
-        <a-entity id="measurements" position="-1 1 -1"></a-entity>
-        <script>
-            // lấy các phần tử HTML
-            var canvas = document.getElementById("canvas");
-            var measurements = document.getElementById("measurements");
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;"
+    >
+      <a-marker preset="hiro">
+        <a-box
+          position="0 0 0"
+          material="color: blue; opacity: 0.5"
+          width="0.2"
+          height="0.2"
+          depth="0.2"
+        ></a-box>
+      </a-marker>
+      <a-entity
+        camera
+        look-controls
+        mouse-cursor
+        position="0 1.6 0"
+        raycaster="objects: .clickable"
+      ></a-entity>
+      <a-entity id="measurements"></a-entity>
+    </a-scene>
 
-            // tạo một đối tượng ARMarkerControls và gán cho nó biến markerControls
-            var markerControls = new THREEx.ArMarkerControls(arToolkitContext, camera, {
-                type: "pattern",
-                patternUrl: "path/to/pattern-marker.patt",
-                changeMatrixMode: "cameraTransformMatrix"
-            });
+    <script>
+      // Get the marker element
+      var marker = document.querySelector("a-marker");
 
-            // xử lý sự kiện update
-            markerControls.addEventListener("markerFound", function (e) {
-                // lấy kích thước của marker được phát hiện
-                var markerWidth = markerControls.getObject3d().children[0].geometry.parameters.width;
-                var markerHeight = markerControls.getObject3d().children[0].geometry.parameters.height;
+      // Define the object to be measured
+      var object = document.querySelector("a-box");
 
-                // tính toán chiều dài, chiều rộng và chiều cao của vật
-                var realWidth = markerWidth * (e.detail.transform.matrix.elements[0] / 1000);
-                var realHeight = markerHeight * (e.detail.transform.matrix.elements[5] / 1000);
-                var realLength = 0.1; // giả sử độ dài của vật là 0.1 mét
+      // Define the measurement element
+      var measurements = document.querySelector("#measurements");
+
+      // Get the current camera
+      var camera = document.querySelector("[camera]");
+
+      // Define the function to calculate the distance between two points
+      function calculateDistance(point1, point2) {
+        var dx = point1.x - point2.x;
+        var dy = point1.y - point2.y;
+        var dz = point1.z - point2.z;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+      }
+
+      // Define the function to update the measurements
+      function updateMeasurements() {
+        // Get the position and scale of the object
+        var position = new THREE.Vector3();
+        var scale = new THREE.Vector3();
+        object.getWorldPosition(position);
+        object.getWorldScale(scale);
+
+        // Get the position of the marker
+        var markerPosition = new THREE.Vector3();
+        marker.object3D.getWorldPosition(markerPosition);
+
+        // Calculate the distance between the camera and the marker
+        var cameraDistance = calculateDistance(camera.object3D.position, markerPosition);
+
+        // Calculate the dimensions of the object
+        var width = scale.x * object.getAttribute("width");
+        var height = scale.y * object.getAttribute("height");
+        var depth = scale.z * object.getAttribute("depth");
+
+        // Calculate the real-world dimensions of the object
+        var realWidth = (width * cameraDistance) / marker.markerWidth;
+        var realHeight = (height * cameraDistance) / marker.markerWidth;
+        var realDepth = (depth * cameraDistance) / marker.markerWidth;
 
                 // hiển thị kết quả tính toán trên trang web
                 measurements.innerHTML =
